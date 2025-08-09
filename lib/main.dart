@@ -1,3 +1,4 @@
+import 'package:coutr/HistoryScreen.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
@@ -26,6 +27,8 @@ class _FocusScreenState extends State<FocusScreen> {
 
   Timer? timer;
   bool isRunning = false;
+
+  final int focusDurationSeconds = 10800; // 3 hours per session
 
   @override
   void initState() {
@@ -83,8 +86,10 @@ class _FocusScreenState extends State<FocusScreen> {
 
   @override
   Widget build(BuildContext context) {
-    int focusDurationSeconds = 10800;
-    double cappedProgress = (seconds / focusDurationSeconds).clamp(0.0, 1.0);
+    double cappedProgress = (seconds / focusDurationSeconds).clamp(
+      0.0,
+      1.0,
+    ); // session fill
 
     Color bgColor = isRunning ? Colors.white : const Color(0xFFFF6F61);
     Color accentColor = isRunning ? Colors.redAccent : Colors.white;
@@ -92,6 +97,31 @@ class _FocusScreenState extends State<FocusScreen> {
 
     return Scaffold(
       backgroundColor: bgColor,
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Colors.redAccent),
+              child: Text(
+                "Settings",
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.history),
+              title: Text("History"),
+              onTap: () {
+                Navigator.pop(context); // close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => HistoryScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -100,7 +130,14 @@ class _FocusScreenState extends State<FocusScreen> {
               alignment: Alignment.topRight,
               child: Padding(
                 padding: const EdgeInsets.only(right: 20),
-                child: Icon(Icons.settings, color: accentColor, size: 22),
+                child: Builder(
+                  builder: (context) => IconButton(
+                    icon: Icon(Icons.settings, color: accentColor, size: 22),
+                    onPressed: () {
+                      Scaffold.of(context).openEndDrawer();
+                    },
+                  ),
+                ),
               ),
             ),
             const Spacer(),
@@ -205,7 +242,7 @@ class DottedArcPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    final totalDashes = 60; // Higher for smoother look
+    final totalDashes = 60; // number of dots
     final dashWidthAngle = (2 * pi) / (totalDashes * 1.4);
     final gapAngle = dashWidthAngle * 0.4;
 
@@ -215,7 +252,7 @@ class DottedArcPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final filledDashes = (totalDashes * progress).floor();
-    double startAngle = -pi / 2; // Start from top
+    double startAngle = -pi / 2; // start at top
 
     for (int i = 0; i < totalDashes; i++) {
       final isFilled = i < filledDashes;
