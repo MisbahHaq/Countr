@@ -98,21 +98,25 @@ class _FocusScreenState extends State<FocusScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       endDrawer: Drawer(
+        backgroundColor: Colors.redAccent,
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(color: Colors.redAccent),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(1),
+              ),
               child: Text(
                 "Settings",
-                style: TextStyle(color: Colors.white, fontSize: 24),
+                style: TextStyle(color: Colors.black, fontSize: 24),
               ),
             ),
             ListTile(
               leading: Icon(Icons.history),
               title: Text("History"),
               onTap: () {
-                Navigator.pop(context); // close drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => HistoryScreen()),
