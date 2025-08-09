@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(const MyApp());
 
@@ -19,22 +20,48 @@ class FocusScreen extends StatefulWidget {
 }
 
 class _FocusScreenState extends State<FocusScreen> {
-  int seconds = 20 * 60; // 20 minutes
+  int seconds = 0;
+  int dailyFocusSeconds = 0;
+  int yesterdayFocusSeconds = 0;
+
   Timer? timer;
-  bool isRunning = true; // true = focus mode, false = break mode
+  bool isRunning = false;
 
   @override
   void initState() {
     super.initState();
-    startTimer();
+    _loadFocusData();
+  }
+
+  Future<void> _loadFocusData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    DateTime now = DateTime.now();
+    String todayKey = "${now.year}-${now.month}-${now.day}";
+    String yesterdayKey =
+        "${now.subtract(const Duration(days: 1)).year}-${now.subtract(const Duration(days: 1)).month}-${now.subtract(const Duration(days: 1)).day}";
+
+    setState(() {
+      dailyFocusSeconds = prefs.getInt(todayKey) ?? 0;
+      yesterdayFocusSeconds = prefs.getInt(yesterdayKey) ?? 0;
+    });
+  }
+
+  Future<void> _saveFocusData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    DateTime now = DateTime.now();
+    String todayKey = "${now.year}-${now.month}-${now.day}";
+
+    await prefs.setInt(todayKey, dailyFocusSeconds);
   }
 
   void startTimer() {
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (isRunning && seconds > 0) {
+    timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (isRunning) {
         setState(() {
-          seconds--;
+          seconds++;
+          dailyFocusSeconds++;
         });
+        _saveFocusData();
       }
     });
   }
@@ -43,17 +70,21 @@ class _FocusScreenState extends State<FocusScreen> {
     setState(() {
       isRunning = !isRunning;
     });
+    if (isRunning) {
+      startTimer();
+    }
   }
 
   String formatTime(int totalSeconds) {
     int minutes = totalSeconds ~/ 60;
-    int seconds = totalSeconds % 60;
-    return "${minutes.toString().padLeft(2, '0')} : ${seconds.toString().padLeft(2, '0')}";
+    int secs = totalSeconds % 60;
+    return "${minutes.toString().padLeft(2, '0')} : ${secs.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
-    double progress = (seconds) / (20 * 60);
+    int focusDurationSeconds = 10800;
+    double cappedProgress = (seconds / focusDurationSeconds).clamp(0.0, 1.0);
 
     Color bgColor = isRunning ? Colors.white : const Color(0xFFFF6F61);
     Color accentColor = isRunning ? Colors.redAccent : Colors.white;
@@ -75,7 +106,7 @@ class _FocusScreenState extends State<FocusScreen> {
             const Spacer(),
             CustomPaint(
               size: const Size(200, 200),
-              painter: DottedArcPainter(progress, accentColor),
+              painter: DottedArcPainter(cappedProgress, accentColor),
             ),
             const SizedBox(height: 20),
             if (isRunning)
@@ -112,6 +143,18 @@ class _FocusScreenState extends State<FocusScreen> {
               ),
             ),
             const Spacer(),
+            Text(
+              "Today's Focus: ${formatTime(dailyFocusSeconds)}",
+              style: TextStyle(color: accentColor, fontSize: 16),
+            ),
+            Text(
+              "Yesterday's Focus: ${formatTime(yesterdayFocusSeconds)}",
+              style: TextStyle(
+                color: accentColor.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 20),
             GestureDetector(
               onTap: toggleTimer,
               child: Container(
@@ -162,24 +205,30 @@ class DottedArcPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
+    final totalDashes = 60; // Higher for smoother look
+    final dashWidthAngle = (2 * pi) / (totalDashes * 1.4);
+    final gapAngle = dashWidthAngle * 0.4;
+
     final paint = Paint()
-      ..color = color
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    int totalDashes = 20;
-    int filledDashes = (totalDashes * (1 - progress)).round();
+    final filledDashes = (totalDashes * progress).floor();
+    double startAngle = -pi / 2; // Start from top
 
     for (int i = 0; i < totalDashes; i++) {
-      double angle = (pi / totalDashes) * i + pi;
-      double startX = center.dx + radius * cos(angle);
-      double startY = center.dy + radius * sin(angle);
-      double endX = center.dx + (radius - 10) * cos(angle);
-      double endY = center.dy + (radius - 10) * sin(angle);
+      final isFilled = i < filledDashes;
+      paint.color = isFilled ? color : Colors.grey[300]!;
 
-      paint.color = i < filledDashes ? color : Colors.grey[300]!;
-      canvas.drawLine(Offset(startX, startY), Offset(endX, endY), paint);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        dashWidthAngle,
+        false,
+        paint,
+      );
+      startAngle += dashWidthAngle + gapAngle;
     }
   }
 
