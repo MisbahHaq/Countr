@@ -1,30 +1,52 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 void fill_time(char *, int);
 void fill_date(char *);
 int input_format();
+void clear_screen();
 
 int main()
 {
-    char time[50], date[100];
+    char timeStr[50], date[100];
 
     int format = input_format();
-    fill_time(time, format);
-    fill_date(date);
-    printf("\nCurrent Time: %s\n", time);
-    printf("\nDate: %s\n", date);
+
+    while (1)
+    {
+        fill_time(timeStr, format);
+        fill_date(date);
+        clear_screen();
+        printf("Current Time: %s\n", timeStr);
+        printf("Date: %s\n", date);
+        sleep(1); // Wait 1 sec
+    }
     return 0;
 }
 
+void clear_screen()
+{
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
 int input_format()
 {
     int format;
     printf("\nChoose the Time Format: \n");
-    printf("\n1. 24 Hour Format");
-    printf("\n2. 12 Hour Format (default)\n");
-    printf("\nMake a Choice:(1/2) ");
-    scanf("%d", &format);
+    printf("\n1. 24 Hour Format\n");
+    printf("2. 12 Hour Format (default)\n");
+    printf("\nMake a Choice (1/2): ");
+
+    if (scanf("%d", &format) != 1 || (format != 1 && format != 2))
+    {
+        printf("\nInvalid input! Defaulting to 12-hour format.\n");
+        format = 2;
+    }
     return format;
 }
 
